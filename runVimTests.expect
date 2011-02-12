@@ -1,0 +1,67 @@
+#!/usr/bin/expect
+
+#log_file -noappend expect.log
+
+# Run tests
+spawn -noecho runVimTests.sh -1 [lindex $argv 0]
+log_user 0
+#exp_internal 1
+# Process output
+set status ""
+while 1 {
+  expect {
+    -re "^(0|\[1-9]\[0-9]*) files?\[^0-9]+(0|\[1-9]\[0-9]*) tests?; (0|\[1-9]\[0-9]*) skipped, (0|\[1-9]\[0-9]*) run: (0|\[1-9]\[0-9]*) OK, (0|\[1-9]\[0-9]*) failures?, (0|\[1-9]\[0-9]*) error\[^\\n]*\\r\\n" {
+    send_user "files: $expect_out(1,string)\n"
+    append status "files: $expect_out(1,string)\n"
+    send_user "tests: $expect_out(2,string)\n"
+    append status "tests: $expect_out(2,string)\n"
+    send_user "skipped: $expect_out(3,string)\n"
+    append status "skipped: $expect_out(3,string)\n"
+    send_user "run: $expect_out(4,string)\n"
+    append status "run: $expect_out(4,string)\n"
+    send_user "ok: $expect_out(5,string)\n"
+    append status "ok: $expect_out(5,string)\n"
+    send_user "failures: $expect_out(6,string)\n"
+    append status "failures: $expect_out(6,string)\n"
+    send_user "errors: $expect_out(7,string)\n"
+    append status "errors: $expect_out(7,string)\n"
+    }
+    -re "^Failed tests: (\[\[:print:]]*)\\r\\n" {
+    send_user "files_failed: $expect_out(1,string)\n"
+    #send_user "--\n$expect_out(0,string)\n--\n"
+    append status "files_failed: $expect_out(1,string)\n"
+    }
+    -re "Tests with errors: (\[\[:print:]]*)\\r\\n" {
+    send_user "files_errors: $expect_out(1,string)\n"
+    append status "files_errors: $expect_out(1,string)\n"
+    }
+    -re "^Press \[^\[:cntrl:]]+ to continue" {
+    #set status "$status$expect_out(0,string) $expect_out(buffer)\n"
+    send "\r"
+    }
+    #-re "^(\\n\\s*){2}\[^:]+:.+" {
+    #append ind_report "--\n$expect_out(0,string)--\n"
+    #}
+    -re "^.*\\n" {
+    #send_user "$status$expect_out(0,string),\n----\n$expect_out(buffer)\n------\n\n"
+    }
+    timeout {
+    set status "error: expect timed out."
+    break
+    }
+    eof {
+    break
+    }
+  }
+}
+
+# Open file
+#send_user $status
+#send_user $ind_report
+set filename [lindex $argv 1]
+if {$filename != ""} {
+  set fileID [open $filename "w"]
+  send_user "Saving to '$filename'\n"
+  puts $fileID $status
+  close $fileID
+}
