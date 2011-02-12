@@ -1,16 +1,11 @@
-nnoremap <silent><leader>t :call test.runTests()<CR>
-command! -bar -nargs=? -complete=file RunTests call test.runTests(<q-args>)
+nnoremap <silent><leader>t :call VimTest.runTests()<CR>
+command! -bar -nargs=? -complete=file RunTests call VimTest.runTests(<q-args>)
 
 hi def VimTestPass  ctermfg=16 ctermbg=150 guifg=Black guibg=#A4E57E
 hi def VimTestFail  ctermfg=16 ctermbg=203 guifg=Black guibg=#FF7272
 
 "echo 'Sourced!'
-if !exists('test')
-  let test = {}
-  let test.timeout = 5
-  let test.exec    = 'runVimTests.expect'
-endif
-function! test.runTests(...) dict "{{{
+function! s:runTests(...) dict "{{{
   if !executable(self.exec)
     " Abort, expect script is not available.
     echohl ErrorMsg
@@ -49,7 +44,7 @@ function! test.runTests(...) dict "{{{
   let self.time     = localtime()
   let self.stamp    = strftime('%Y-%m-%d %X', localtime())
   let self.status   = 'pending'
-  for v in ['output', 'files', 'tests', 'skipped', 'run', 'failures', 'errors', 'files_failed', 'files_errors']
+  for v in ['output', 'files', 'tests', 'skipped', 'run', 'failures', 'errors', 'files_failed', 'files_errors', 'error']
     sil! unlet self[v]
   endfor
 
@@ -61,11 +56,11 @@ function! test.runTests(...) dict "{{{
   let self.elapsed  = localtime() - self.time
   augroup TestRunning
     au!
-    exec 'au CursorHold,CursorHoldI,InsertEnter,InsertLeave * call test.updateTests()'
+    exec 'au CursorHold,CursorHoldI,InsertEnter,InsertLeave * call VimTest.updateTests()'
   augroup END
 endfunction "}}}
 
-function! test.updateTests() dict "{{{
+function! s:updateTests() dict "{{{
   if !filereadable(self.tempfile)
     " File is not available"
     if localtime() - self.time > self.timeout
@@ -111,3 +106,22 @@ function! test.updateTests() dict "{{{
   augroup END
   augroup! TestRunning
 endfunction "}}}
+
+function! VimTest()
+  echom 'Creating'
+  let g:VimTest = {}
+  let g:VimTest.timeout = 5
+  let g:VimTest.exec    = 'runVimTests.expect'
+  let g:VimTest.updateTests = function('<SNR>'.s:SID().'_updateTests')
+  let g:VimTest.runTests    = function('<SNR>'.s:SID().'_runTests')
+endfunction
+
+" Araxia found this bit on the help.
+function! s:SID()
+  return matchstr(expand('<sfile>'), '<SNR>\zs\d\+\ze_SID$')
+endfun
+
+" Create dict.
+if !exists('VimTest')
+  call VimTest()
+endif
