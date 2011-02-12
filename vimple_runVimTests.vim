@@ -20,7 +20,7 @@ function! test.runTests(...) dict "{{{
   elseif exists('self.status') && self.status == 'pending'
     " Test is running, do not start another.
     echohl ErrorMsg
-    echom 'The previous test has not finished yet'
+    echom 'The previous test has not finished yet.'
     echohl Normal
     return
   endif
@@ -32,7 +32,7 @@ function! test.runTests(...) dict "{{{
   elseif !exists('self.testfile') || glob(self.testfile) == '' || v:count > 0
     " Doesn't exists or a count was used with the mapping, ask for a path.
     let self.testfile = input("Tell me where the tests are: ", get(self,'testfile',''), 'file')
-    echom string(self)
+    "echom string(self)
   endif
 
   if glob(self.testfile) == ''
@@ -61,26 +61,32 @@ function! test.runTests(...) dict "{{{
   let self.elapsed  = localtime() - self.time
   augroup TestRunning
     au!
-    exec 'au CursorHold,InsertEnter,InsertLeave * call test.updateTests()'
+    exec 'au CursorHold,CursorHoldI,InsertEnter,InsertLeave * call test.updateTests()'
   augroup END
 endfunction "}}}
 
 function! test.updateTests() dict "{{{
-  if !filereadable(self.tempfile) && localtime() - self.time > self.timeout
-    let self.status = 'timeout'
-    echohl ErrorMsg
-    echom join(readfile(self.tempfile), ',')
-  elseif !filereadable(self.tempfile)
-    return
+  if !filereadable(self.tempfile)
+    " File is not available"
+    if localtime() - self.time > self.timeout
+      let self.status = 'timeout'
+      echohl ErrorMsg
+      " echom join(readfile(self.tempfile), ',')
+    else
+      return
+    endif
   else
+    " Parse it
     "echom join(readfile(self.tempfile), ', ')
     let self.output = readfile(self.tempfile)
     for f in self.output
-      echom string(f).' '.substitute(f, '^\(\k\+\):.*$', '\1', '').':'.substitute(f, '^.\{-}: \(.\+\)$', '\1', '')
+      "echom string(f).' '.substitute(f, '^\(\k\+\):.*$', '\1', '').':'.substitute(f, '^.\{-}: \(.\+\)$', '\1', '')
       if f =~# '^\(\k\+\): \(.\+\)$'
         let self[substitute(f, '^\(\k\+\):.*$', '\1', '')] = substitute(f, '^.\{-}: \(.\+\)$', '\1', '')
       endif
     endfor
+
+    " Check for failures (should we check for errors also?)
     if exists('self.failures')
       if self.failures > 0
         let self.status = 'failed'
@@ -96,7 +102,9 @@ function! test.updateTests() dict "{{{
   endif
   "echom system('cat '.self.tempfile)
   "echom string(self)
-  echom self.status . repeat(" ",&columns - len(self.status))
+  " fmod() is 7.3... what say you?
+  echom self.status . repeat(" ",(&columns -(len(self.status) - (len(self.status)/&columns) * &columns)))
+  "echon repeat("_",&columns - 1) . "\r" . self.status
   echohl None
   augroup TestRunning
     au!
